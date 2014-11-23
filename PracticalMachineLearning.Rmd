@@ -84,13 +84,13 @@ for (i in colnames(pml_training)) { pml_training[,i] <- as.numeric(pml_training[
 pml_training$classe <- classe
 ```
 
-##### Plot classe variable
+##### Plot classe variable for analysis
 ```{r, echo=TRUE}
 plot(pml_training$classe)
 ```
 No skew detected, so we can directly create partitions (no need to do stratified sampling)
 
-##### Create data partitions and training/testing data sets
+#### Create data partitions and training/testing data sets
 Setting a seed value to 1234 to make things reproducible.
 70% data is for training and 30% for testing.
 
@@ -101,7 +101,7 @@ training <- pml_training[inTrain,]
 testing <- pml_training[-inTrain,]
 ```
 
-##### Build a model using Random Forest
+#### Build a model using Random Forest
 Tried different values for the number of trees and found that ntree of 200 gives fairly accurate   
 results.  
 Remember that more the number of trees, more is the computation involved in model building and  
@@ -128,7 +128,7 @@ The above details show very good values of Sensitivity and Specificity and hence
 the model is good.  
 Predictions also look very accurate
 
-##### Run predictions on new data set.
+#### Run predictions on new data set using the model built
 We do the same data cleaning steps as we did in training and building a model.  
 ```{r, echo=TRUE}
 download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", destfile = "pml-testing.csv", method="curl")
@@ -143,4 +143,19 @@ predictions_new <- predict(RF_model, newdata = pml_testing[,-(dim(pml_testing)[2
 ##### Result of predictions on the new data set
 ```{r, echo=TRUE}
 predictions_new
+```
+
+##### Write the Prediction to files (inside a folder called "results")
+```{r, echo=TRUE}
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_", i ,".txt")
+    write.table(x[i], file = filename, quote = FALSE,
+                row.names = FALSE, col.names = FALSE)
+  }
+}
+
+setwd("results/");
+pml_write_files(predictions_new)
 ```
