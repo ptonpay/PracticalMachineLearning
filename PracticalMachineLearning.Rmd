@@ -84,6 +84,11 @@ for (i in colnames(pml_training)) { pml_training[,i] <- as.numeric(pml_training[
 pml_training$classe <- classe
 ```
 
+##### Plot classe variable
+```{r, echo=TRUE}
+plot(pml_training$classe)
+```
+No skew detected, so we can directly create partitions (no need to do stratified sampling)
 
 ##### Create data partitions and training/testing data sets
 Setting a seed value to 1234 to make things reproducible.
