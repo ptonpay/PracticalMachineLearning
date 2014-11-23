@@ -1,0 +1,141 @@
+---
+title: "PracticalMachineLearning"
+output: html_document
+---
+## Practical Machine Learning - Prediction Assignment Writeup
+
+### Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large  
+amount of data about personal activity relatively inexpensively. These type of devices are part  
+of the quantified self movement – a group of enthusiasts who take measurements about themselves  
+regularly to improve their health, to find patterns in their behavior, or because they are tech   
+geeks. One thing that people regularly do is quantify how much of a particular activity they do,   
+but they rarely quantify how well they do it. In this project, your goal will be to use data from   
+accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to  
+perform barbell lifts correctly and incorrectly in 5 different ways. More information is available  
+from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting   
+Exercise Dataset).  
+
+### Data
+The training data for this project is downloaded from the below -  
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv  
+
+The test data is downloaded from the below:   
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv  
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har.   
+
+### Description
+Predictor variable -- classe.  
+We would use seed value of 1234 to make this reproducible.  
+
+#### Load the training data -
+```{r, echo=TRUE}
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", destfile = "pml-training.csv", method="curl")
+pml_training <- read.csv("pml-training.csv", header = TRUE)
+```
+
+#### Check summary statistics 
+``` { r, echo=TRUE }
+summary(pml_training)
+str(pml_training, list.len = 999)
+dim(pml_training)
+(colSums(is.na(pml_training))) / (dim(pml_training)[1])
+```
+
+#### Observations of data
+Two main points are observed in the data set -  
+A) There are a lot of columns with NAs in it. So, we would find those columns and filter them.  
+B) Some numeric data have been imported as factor because of the presence of some characters ("#DIV/0!")  
+
+##### Data cleaning for "#DIV/0!" 
+We would reload the data and load #DIV/0! as NA  
+
+```{r, echo=TRUE }
+pml_training <- read.csv("pml-training.csv", header = TRUE, na.strings=c("#DIV/0!"))
+```
+
+##### Data cleaning for missing data  
+```{r , echo=TRUE}
+checkforna <- (colSums(is.na(pml_training))) / (dim(pml_training)[1])
+names(which(checkforna > 0.5 ))
+pml_training[,names(which(checkforna > 0.5 ))] <- list(NULL)
+```
+
+##### Data cleaning for some variables 
+Variables like "user_name" , "X",  "raw_timestamp_part_1" , "raw_timestamp_part_2" and cvtd_timestamp seem  
+to be of no use and can be dropped.  
+
+```{r , echo=TRUE}
+pml_training[ , c("user_name", "X", "raw_timestamp_part_1", "raw_timestamp_part_2", "cvtd_timestamp" )] <- list(NULL)
+```
+
+##### Load relevant libraries
+```{r , echo=TRUE}
+library(randomForest)
+library(caret)
+```
+
+##### Convert factor variables to numerics ( except the predicted variable)
+```{r, echo=TRUE}
+classe <- pml_training$classe
+pml_training$classe <- NULL
+for (i in colnames(pml_training)) { pml_training[,i] <- as.numeric(pml_training[,i]) }
+pml_training$classe <- classe
+```
+
+
+##### Create data partitions and training/testing data sets
+Setting a seed value to 1234 to make things reproducible.
+70% data is for training and 30% for testing.
+
+```{r , echo=TRUE}
+set.seed(1234)
+inTrain <- createDataPartition(pml_training$classe, p=0.7, list=FALSE)
+training <- pml_training[inTrain,]
+testing <- pml_training[-inTrain,]
+```
+
+##### Build a model using Random Forest
+Tried different values for the number of trees and found that ntree of 200 gives fairly accurate   
+results.  
+Remember that more the number of trees, more is the computation involved in model building and  
+predictions.  
+```{r , echo=TRUE}
+RF_model <- randomForest( classe ~ ., data=training, importance=TRUE, ntree=200)
+```
+
+##### Check the model for in-sample data
+```{ r, echo=TRUE}
+RF_model
+```
+Confusion matrix indicates OOB estimates ( for in-sample error ) of 0.33% which looks fairly accurate.  
+The confusion matrix also indicate that predictions are accurate, so we move ahead with this model.  
+
+##### Check the model for testing data
+```{ r, echo=TRUE}
+predictions <- predict( RF_model, newdata=testing[,-(dim(testing)[2]) ])
+confusionMatrix(predictions, testing$classe )
+```
+
+ConfusionMatrix indicates accuracy of 0.9978 which is very accurate.  
+The above details show very good values of Sensitivity and Specificity and hence indicate that  
+the model is good.  
+Predictions also look very accurate
+
+##### Run predictions on new data set.
+We do the same data cleaning steps as we did in training and building a model.  
+```{r, echo=TRUE}
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", destfile = "pml-testing.csv", method="curl")
+pml_testing <- read.csv("pml-testing.csv", header = TRUE, na.strings=c("#DIV/0!"))
+pml_testing[,names(which(checkforna > 0.5 ))] <- list(NULL)
+pml_testing[ ,c("user_name", "X", "raw_timestamp_part_1", "raw_timestamp_part_2", "cvtd_timestamp" )] <- list(NULL)
+for (i in colnames(pml_testing)) { pml_testing[,i] <- as.numeric(pml_testing[,i]) }
+
+predictions_new <- predict(RF_model, newdata = pml_testing[,-(dim(pml_testing)[2])])
+```
+
+##### Result of predictions on the new data set
+```{r, echo=TRUE}
+predictions_new
+```
